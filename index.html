@@ -11,7 +11,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <style>
-/* Layout: one working column — drop zone on top, a ledger of converted files below, each row a before/after card. */
+/* Layout: one working column. Drop zone on top, a ledger of files below; animated files open a three-way format choice inside their row. */
 :root {
   --bg: #f3f5f9;
   --surface: #ffffff;
@@ -56,13 +56,11 @@ h1 { font-family: var(--display); font-weight: 700; font-size: clamp(32px, 6vw, 
 h1 .arrow { color: var(--accent); }
 .lede { margin: 0; color: var(--muted); max-width: 62ch; }
 
-/* Drop zone */
 .drop {
   position: relative; border: 2px dashed var(--line); border-radius: 14px;
-  background:
-    repeating-conic-gradient(var(--check-a) 0 25%, var(--check-b) 0 50%) 0 0 / 20px 20px;
+  background: repeating-conic-gradient(var(--check-a) 0 25%, var(--check-b) 0 50%) 0 0 / 20px 20px;
   padding: 36px 20px; display: grid; place-items: center; text-align: center; gap: 12px;
-  transition: border-color .15s, transform .15s;
+  transition: border-color .15s, transform .15s; cursor: pointer;
 }
 .drop::before { content: ""; position: absolute; inset: 0; border-radius: 12px; background: var(--surface); opacity: .88; }
 .drop > * { position: relative; }
@@ -78,16 +76,14 @@ h1 .arrow { color: var(--accent); }
 .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
 .btn.primary:hover { filter: brightness(1.08); }
 .btn:disabled { opacity: .5; cursor: not-allowed; }
-.btn:focus-visible, .drop:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; }
+.btn:focus-visible, .choice:focus-visible, .drop:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; }
 .hint { font-family: var(--mono); font-size: 12px; color: var(--muted); }
 
-/* Toolbar */
 .bar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; }
 .bar h2 { font-family: var(--display); font-size: 20px; font-weight: 600; margin: 0; }
 .bar .actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .notice { font-size: 13px; color: var(--muted); background: var(--accent-soft); border-radius: 8px; padding: 10px 12px; }
 
-/* File rows */
 .list { display: grid; gap: 12px; }
 .row {
   display: grid; grid-template-columns: 112px minmax(0, 1fr) auto; gap: 16px; align-items: center;
@@ -101,7 +97,7 @@ h1 .arrow { color: var(--accent); }
 .thumb img { max-width: 100%; max-height: 100%; object-fit: contain; display: block; }
 .meta { min-width: 0; display: grid; gap: 4px; }
 .name { font-weight: 600; overflow-wrap: anywhere; }
-.name .tag { font: 500 11px/1 var(--mono); text-transform: uppercase; letter-spacing: .06em; color: var(--accent); background: var(--accent-soft); padding: 3px 6px; border-radius: 4px; margin-left: 6px; vertical-align: 2px; }
+.tag { font: 500 11px/1 var(--mono); text-transform: uppercase; letter-spacing: .06em; color: var(--accent); background: var(--accent-soft); padding: 3px 6px; border-radius: 4px; margin-left: 6px; vertical-align: 2px; }
 .facts { font-family: var(--mono); font-size: 12.5px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 4px 14px; font-variant-numeric: tabular-nums; }
 .facts b { font-weight: 500; color: var(--ink); }
 .status { font-size: 13px; }
@@ -111,13 +107,37 @@ h1 .arrow { color: var(--accent); }
 .icon-btn { width: 38px; height: 38px; padding: 0; justify-content: center; }
 .empty { text-align: center; color: var(--muted); padding: 24px; border: 1px dashed var(--line); border-radius: 12px; }
 
-footer { font-size: 13px; color: var(--muted); }
+/* Format choice for animated files */
+.ask { grid-column: 1 / -1; display: grid; gap: 10px; border-top: 1px solid var(--line); padding-top: 12px; }
+.ask-q { font-weight: 600; font-size: 14px; }
+.choices { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.choice {
+  text-align: left; font: inherit; color: var(--ink); cursor: pointer;
+  background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 12px;
+  display: grid; gap: 4px; align-content: start;
+}
+.choice:hover:not(:disabled) { border-color: var(--accent); }
+.choice:disabled { cursor: progress; }
+.choice .c-title { font-family: var(--display); font-weight: 600; font-size: 16px; }
+.choice .c-desc { font-size: 12.5px; color: var(--muted); }
+.choice .c-state { font: 500 12.5px/1.3 var(--mono); color: var(--accent); margin-top: 6px; font-variant-numeric: tabular-nums; }
+.choice.done { border-color: var(--accent); background: var(--accent-soft); }
+.choice.done .c-state { color: var(--ok); }
+.choice.failed .c-state { color: var(--warn); }
 
+footer { font-size: 13px; color: var(--muted); display: grid; gap: 6px; max-width: 70ch; }
+footer p { margin: 0; }
+code { font-family: var(--mono); font-size: .92em; }
+
+@media (max-width: 640px) {
+  .choices { grid-template-columns: 1fr; }
+}
 @media (max-width: 560px) {
   .row { grid-template-columns: 80px minmax(0, 1fr); }
   .thumb { width: 80px; height: 64px; }
   .row-actions { grid-column: 1 / -1; }
   .row-actions .btn:first-child { flex: 1; justify-content: center; }
+  .row-actions .btn.icon-btn:first-child { flex: 0 0 auto; }
 }
 @media (prefers-reduced-motion: reduce) { .drop { transition: none; } }
 </style>
@@ -126,7 +146,7 @@ footer { font-size: 13px; color: var(--muted); }
   <header>
     <span class="eyebrow">Image converter · runs in your browser</span>
     <h1>WebP <span class="arrow">→</span> PNG</h1>
-    <p class="lede">Drop in .webp images and get lossless PNG copies with transparency intact. Files never leave your device; decoding and encoding happen right here on the page.</p>
+    <p class="lede">Drop in .webp images and get lossless PNG copies with transparency intact. Animated WebPs can become an APNG, a PNG frame sequence, or an animated AVIF. Files never leave your device.</p>
   </header>
 
   <label class="drop" id="drop">
@@ -134,12 +154,12 @@ footer { font-size: 13px; color: var(--muted); }
     <p>or paste an image, or</p>
     <span class="btn primary" role="button">Choose files</span>
     <input id="picker" type="file" accept="image/webp,.webp" multiple hidden>
-    <span class="hint">Multiple files OK · animated WebP keeps its first frame</span>
+    <span class="hint">Multiple files OK · animated files ask which format you want</span>
   </label>
 
   <section style="display:grid;gap:14px">
     <div class="bar">
-      <h2 id="count">Converted files</h2>
+      <h2 id="count">Files</h2>
       <div class="actions">
         <button class="btn" id="clear" type="button">Clear list</button>
         <button class="btn primary" id="zip" type="button">Save all as ZIP</button>
@@ -149,7 +169,10 @@ footer { font-size: 13px; color: var(--muted); }
     <div class="list" id="list"></div>
   </section>
 
-  <footer>PNG is lossless, so output files are often larger than the WebP source. That's expected.</footer>
+  <footer>
+    <p>PNG is lossless, so output files are often larger than the WebP source.</p>
+    <p>Browsers can't encode animated AVIF yet, so the AVIF option gives you a ZIP with every frame plus a one-click script that builds a lossless <code>.avif</code> with the free <code>avifenc</code> tool.</p>
+  </footer>
 </div>
 
 <script>
@@ -162,27 +185,247 @@ footer { font-size: 13px; color: var(--muted); }
   const picker = document.getElementById('picker');
   const noSave = document.getElementById('noSave');
 
-  let items = [];       // {id, name, srcSize, pngBlob, url, w, h, alpha, error, example}
+  let items = [];
   let downloads = null;
   let downloadsChecked = false;
   let nextId = 1;
 
-  const fmt = (n) => n < 1024 ? n + ' B' : n < 1048576 ? (n / 1024).toFixed(1) + ' KB' : (n / 1048576).toFixed(2) + ' MB';
-  const pngName = (name) => name.replace(/\.webp$/i, '').replace(/\.[^.]+$/, '') + '.png';
+  const FORMATS = [
+    { key: 'apng',   title: 'APNG',          desc: 'One animated .png. Lossless, full transparency, plays in browsers.' },
+    { key: 'frames', title: 'PNG frames',    desc: 'ZIP of every frame as a PNG, with a timing list.' },
+    { key: 'avif',   title: 'Animated AVIF', desc: 'ZIP of frames plus a script that builds a lossless .avif with avifenc.' },
+  ];
 
-  async function decode(file) {
-    if ('createImageBitmap' in window) {
-      try { return await createImageBitmap(file); } catch (e) { /* fall through */ }
+  const fmt = (n) => n < 1024 ? n + ' B' : n < 1048576 ? (n / 1024).toFixed(1) + ' KB' : (n / 1048576).toFixed(2) + ' MB';
+  const baseName = (name) => (name || 'image').replace(/\.[^.]+$/, '');
+  const secs = (ms) => (ms / 1000).toFixed(ms < 10000 ? 2 : 1) + ' s';
+
+  /* ---------- WebP container parsing ---------- */
+  function parseWebP(buf) {
+    const u8 = new Uint8Array(buf), dv = new DataView(buf);
+    const tag = (o) => String.fromCharCode(u8[o], u8[o + 1], u8[o + 2], u8[o + 3]);
+    const u24 = (o) => u8[o] | (u8[o + 1] << 8) | (u8[o + 2] << 16);
+    if (u8.length < 20 || tag(0) !== 'RIFF' || tag(8) !== 'WEBP') return null;
+    const end = Math.min(u8.length, 8 + dv.getUint32(4, true));
+    const info = { flags: 0, w: 0, h: 0, loops: 0, frames: [] };
+    let o = 12;
+    while (o + 8 <= end) {
+      const id = tag(o), size = dv.getUint32(o + 4, true), d = o + 8;
+      if (id === 'VP8X' && size >= 10) { info.flags = u8[d]; info.w = u24(d + 4) + 1; info.h = u24(d + 7) + 1; }
+      else if (id === 'ANIM' && size >= 6) { info.loops = dv.getUint16(d + 4, true); }
+      else if (id === 'ANMF' && size >= 16) {
+        const f = { x: u24(d) * 2, y: u24(d + 3) * 2, w: u24(d + 6) + 1, h: u24(d + 9) + 1, dur: u24(d + 12), flags: u8[d + 15], parts: [], alpha: false };
+        const fend = Math.min(end, d + size);
+        let p = d + 16;
+        while (p + 8 <= fend) {
+          const sid = tag(p), ss = dv.getUint32(p + 4, true);
+          if (sid === 'ALPH' || sid === 'VP8 ' || sid === 'VP8L') {
+            const padded = new Uint8Array(8 + ss + (ss & 1));
+            padded.set(u8.subarray(p, Math.min(fend, p + 8 + ss)));
+            f.parts.push(padded);
+            if (sid !== 'VP8 ') f.alpha = true;
+          }
+          p += 8 + ss + (ss & 1);
+        }
+        if (f.parts.length) info.frames.push(f);
+      }
+      o = d + size + (size & 1);
     }
+    info.animated = !!(info.flags & 0x02) && info.frames.length > 1;
+    return info;
+  }
+
+  // Wrap one ANMF frame's bitstream as a standalone still WebP the browser can decode.
+  function frameToWebP(f) {
+    const body = f.parts.reduce((a, p) => a + p.length, 0);
+    const riffSize = 4 + 18 + body;
+    const out = new Uint8Array(8 + riffSize), dv = new DataView(out.buffer);
+    out.set([82, 73, 70, 70]); dv.setUint32(4, riffSize, true); out.set([87, 69, 66, 80], 8);
+    out.set([86, 80, 56, 88], 12); dv.setUint32(16, 10, true);
+    out[20] = f.alpha ? 0x10 : 0;
+    const w = f.w - 1, h = f.h - 1;
+    out[24] = w & 255; out[25] = (w >> 8) & 255; out[26] = (w >> 16) & 255;
+    out[27] = h & 255; out[28] = (h >> 8) & 255; out[29] = (h >> 16) & 255;
+    let p = 30;
+    for (const part of f.parts) { out.set(part, p); p += part.length; }
+    return new Blob([out], { type: 'image/webp' });
+  }
+
+  // Composite frames exactly as the WebP spec describes; yields full-canvas RGBA for each frame.
+  async function* compositeFrames(info) {
+    const c = document.createElement('canvas');
+    c.width = info.w; c.height = info.h;
+    const ctx = c.getContext('2d', { willReadFrequently: true });
+    let prev = null;
+    for (let i = 0; i < info.frames.length; i++) {
+      const f = info.frames[i];
+      if (prev && (prev.flags & 0x01)) ctx.clearRect(prev.x, prev.y, prev.w, prev.h);
+      const bmp = await createImageBitmap(frameToWebP(f));
+      if (f.flags & 0x02) ctx.clearRect(f.x, f.y, f.w, f.h);
+      ctx.drawImage(bmp, f.x, f.y);
+      if (bmp.close) bmp.close();
+      yield { i, rgba: ctx.getImageData(0, 0, info.w, info.h).data, dur: f.dur || 100 };
+      prev = f;
+    }
+  }
+
+  /* ---------- PNG / APNG encoding ---------- */
+  const CRC_TABLE = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+  function crc32(bytes) { let c = 0xFFFFFFFF; for (let i = 0; i < bytes.length; i++) c = CRC_TABLE[(c ^ bytes[i]) & 255] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
+  function chunk(type, data) {
+    const out = new Uint8Array(12 + data.length), dv = new DataView(out.buffer);
+    dv.setUint32(0, data.length);
+    for (let i = 0; i < 4; i++) out[4 + i] = type.charCodeAt(i);
+    out.set(data, 8);
+    dv.setUint32(8 + data.length, crc32(out.subarray(4, 8 + data.length)));
+    return out;
+  }
+  const be32 = (...vals) => { const b = new Uint8Array(vals.length * 4), dv = new DataView(b.buffer); vals.forEach((v, i) => dv.setUint32(i * 4, v)); return b; };
+  const PNG_SIG = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]);
+  function ihdr(w, h) { const d = new Uint8Array(13); d.set(be32(w, h)); d[8] = 8; d[9] = 6; return chunk('IHDR', d); }
+
+  // Adaptive per-row filtering (None/Sub/Up/Paeth), RGBA 8-bit.
+  function filterRows(rgba, w, h) {
+    const stride = w * 4, out = new Uint8Array(h * (stride + 1));
+    const cand = [new Uint8Array(stride), new Uint8Array(stride), new Uint8Array(stride), new Uint8Array(stride)];
+    for (let y = 0; y < h; y++) {
+      const r = y * stride, up = r - stride;
+      let best = 0, bestSum = Infinity;
+      for (let t = 0; t < 4; t++) {
+        const c = cand[t]; let sum = 0;
+        for (let i = 0; i < stride; i++) {
+          const x = rgba[r + i], a = i >= 4 ? rgba[r + i - 4] : 0, b = y ? rgba[up + i] : 0, cc = (y && i >= 4) ? rgba[up + i - 4] : 0;
+          let v;
+          if (t === 0) v = x;
+          else if (t === 1) v = x - a;
+          else if (t === 2) v = x - b;
+          else { const p = a + b - cc, pa = Math.abs(p - a), pb = Math.abs(p - b), pc = Math.abs(p - cc); v = x - (pa <= pb && pa <= pc ? a : pb <= pc ? b : cc); }
+          v &= 255; c[i] = v; sum += v < 128 ? v : 256 - v;
+          if (sum >= bestSum) break;
+        }
+        if (sum < bestSum) { bestSum = sum; best = t; }
+      }
+      const filterType = [0, 1, 2, 4][best];
+      // Recompute the chosen filter in full: the trial loop may have stopped early.
+      const c = cand[best];
+      for (let i = 0; i < stride; i++) {
+        const x = rgba[r + i], a = i >= 4 ? rgba[r + i - 4] : 0, b = y ? rgba[up + i] : 0, cc = (y && i >= 4) ? rgba[up + i - 4] : 0;
+        let v;
+        if (best === 0) v = x; else if (best === 1) v = x - a; else if (best === 2) v = x - b;
+        else { const p = a + b - cc, pa = Math.abs(p - a), pb = Math.abs(p - b), pc = Math.abs(p - cc); v = x - (pa <= pb && pa <= pc ? a : pb <= pc ? b : cc); }
+        c[i] = v & 255;
+      }
+      out[y * (stride + 1)] = filterType;
+      out.set(c, y * (stride + 1) + 1);
+    }
+    return out;
+  }
+  async function zlib(raw) {
+    const stream = new Blob([raw]).stream().pipeThrough(new CompressionStream('deflate'));
+    return new Uint8Array(await new Response(stream).arrayBuffer());
+  }
+  async function encodePNG(rgba, w, h) {
+    const z = await zlib(filterRows(rgba, w, h));
+    return new Blob([PNG_SIG, ihdr(w, h), chunk('IDAT', z), chunk('IEND', new Uint8Array(0))], { type: 'image/png' });
+  }
+  function crop(rgba, W, x, y, w, h) {
+    const out = new Uint8Array(w * h * 4);
+    for (let r = 0; r < h; r++) out.set(rgba.subarray(((y + r) * W + x) * 4, ((y + r) * W + x + w) * 4), r * w * 4);
+    return out;
+  }
+  function changedRect(a, b, W, H) {
+    let x0 = W, y0 = H, x1 = -1, y1 = -1;
+    const A = new Uint32Array(a.buffer, a.byteOffset, W * H), B = new Uint32Array(b.buffer, b.byteOffset, W * H);
+    for (let y = 0; y < H; y++) {
+      const row = y * W;
+      for (let x = 0; x < W; x++) if (A[row + x] !== B[row + x]) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; y1 = y; }
+    }
+    return x1 < 0 ? { x: 0, y: 0, w: 1, h: 1 } : { x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1 };
+  }
+  function delay(ms) { return ms <= 65535 ? [ms, 1000] : [Math.min(65535, Math.round(ms / 10)), 100]; }
+
+  async function buildAPNG(info, onProgress) {
+    const W = info.w, H = info.h, n = info.frames.length;
+    const parts = [PNG_SIG, ihdr(W, H), chunk('acTL', be32(n, info.loops))];
+    let seq = 0, prev = null;
+    for await (const fr of compositeFrames(info)) {
+      const rect = prev ? changedRect(prev, fr.rgba, W, H) : { x: 0, y: 0, w: W, h: H };
+      const px = prev ? crop(fr.rgba, W, rect.x, rect.y, rect.w, rect.h) : fr.rgba;
+      const [num, den] = delay(fr.dur);
+      const fc = new Uint8Array(26), dv = new DataView(fc.buffer);
+      dv.setUint32(0, seq++); dv.setUint32(4, rect.w); dv.setUint32(8, rect.h); dv.setUint32(12, rect.x); dv.setUint32(16, rect.y);
+      dv.setUint16(20, num); dv.setUint16(22, den); fc[24] = 0; fc[25] = 0; // dispose NONE, blend SOURCE
+      parts.push(chunk('fcTL', fc));
+      const z = await zlib(filterRows(px, rect.w, rect.h));
+      if (fr.i === 0) parts.push(chunk('IDAT', z));
+      else { const d = new Uint8Array(4 + z.length); new DataView(d.buffer).setUint32(0, seq++); d.set(z, 4); parts.push(chunk('fdAT', d)); }
+      prev = fr.rgba;
+      onProgress(fr.i + 1, n);
+    }
+    parts.push(chunk('IEND', new Uint8Array(0)));
+    return new Blob(parts, { type: 'image/png' });
+  }
+
+  async function buildFrameZip(info, base, withAvifKit, onProgress) {
+    const zip = new JSZip(), n = info.frames.length, pad = Math.max(4, String(n).length);
+    const names = [], durs = [];
+    for await (const fr of compositeFrames(info)) {
+      const name = `frame-${String(fr.i + 1).padStart(pad, '0')}.png`;
+      zip.file(name, await encodePNG(fr.rgba, info.w, info.h));
+      names.push(name); durs.push(fr.dur);
+      onProgress(fr.i + 1, n);
+    }
+    const loopsText = info.loops === 0 ? 'forever' : `${info.loops} time(s)`;
+    zip.file('timing.txt',
+      `Source: ${base}.webp\nCanvas: ${info.w} x ${info.h} px\nFrames: ${n}\nPlays: ${loopsText}\n\nframe\tduration_ms\n` +
+      names.map((nm, i) => `${nm}\t${durs[i]}`).join('\n') + '\n');
+    if (withAvifKit) {
+      const rep = info.loops === 0 ? 'infinite' : String(Math.max(0, info.loops - 1));
+      const out = `${base}.avif`;
+      const sh = ['#!/bin/sh', '# Builds a lossless animated AVIF from the frames in this folder.', '# Requires avifenc (libavif). See README.txt.', 'cd "$(dirname "$0")" || exit 1',
+        `avifenc --lossless --timescale 1000 --repetition-count ${rep} \\`,
+        ...names.map((nm, i) => `  --duration ${durs[i]} ${nm} \\`), `  "${out}"`, `echo "Created ${out}"`, ''].join('\n');
+      const bat = ['@echo off', 'REM Builds a lossless animated AVIF from the frames in this folder.', 'REM Requires avifenc (libavif). See README.txt.', 'cd /d "%~dp0"',
+        `avifenc --lossless --timescale 1000 --repetition-count ${rep} ^`,
+        ...names.map((nm, i) => `  --duration ${durs[i]} ${nm} ^`), `  "${out}"`, `echo Created ${out}`, 'pause', ''].join('\r\n');
+      zip.file('make-avif.sh', sh, { unixPermissions: '755' });
+      zip.file('make-avif.bat', bat);
+      zip.file('README.txt',
+`Animated AVIF kit for ${base}.webp
+
+Browsers can't encode animated AVIF, so this kit builds it on your computer
+with avifenc, the reference AVIF encoder from libavif. Output is lossless
+and keeps every frame's timing and transparency.
+
+1. Install avifenc
+   macOS:          brew install libavif
+   Ubuntu/Debian:  sudo apt install libavif-bin
+   Windows:        download libavif from https://github.com/AOMediaCodec/libavif/releases
+                   and put avifenc.exe in this folder or on your PATH
+
+2. Run the script in this folder
+   macOS/Linux:    sh make-avif.sh
+   Windows:        double-click make-avif.bat
+
+3. ${out} appears next to the frames.
+
+Lossless AVIF files are large. For a smaller file, replace --lossless in the
+script with a quality setting such as -q 80.
+`);
+    }
+    return zip.generateAsync({ type: 'blob', compression: 'STORE', platform: 'UNIX' });
+  }
+
+  /* ---------- Still images ---------- */
+  async function decode(file) {
+    if ('createImageBitmap' in window) { try { return await createImageBitmap(file); } catch (e) {} }
     return new Promise((res, rej) => {
-      const img = new Image();
-      const u = URL.createObjectURL(file);
+      const img = new Image(), u = URL.createObjectURL(file);
       img.onload = () => { URL.revokeObjectURL(u); res(img); };
       img.onerror = () => { URL.revokeObjectURL(u); rej(new Error('decode')); };
       img.src = u;
     });
   }
-
   function hasAlpha(ctx, w, h) {
     const data = ctx.getImageData(0, 0, w, h).data;
     const step = Math.max(1, Math.floor((w * h) / 400000)) * 4;
@@ -190,13 +433,23 @@ footer { font-size: 13px; color: var(--muted); }
     return false;
   }
 
-  async function convert(file, example = false) {
-    const item = { id: nextId++, name: pngName(file.name || 'pasted-image.webp'), srcName: file.name || 'pasted image', srcSize: file.size, example };
+  async function addFile(file, example = false) {
+    const item = { id: nextId++, srcName: file.name || 'pasted-image.webp', srcSize: file.size, example, outputs: {}, busy: {} };
+    item.base = baseName(item.srcName);
+    item.name = item.base + '.png';
+    item.srcUrl = URL.createObjectURL(file);
     items.unshift(item);
     render();
     try {
-      const looksWebp = /webp/i.test(file.type) || /\.webp$/i.test(file.name || '');
-      if (!looksWebp) item.note = 'Not a .webp file, converted anyway';
+      const buf = await file.arrayBuffer();
+      const info = parseWebP(buf);
+      if (info && info.animated) {
+        item.anim = info;
+        item.totalMs = info.frames.reduce((a, f) => a + (f.dur || 100), 0);
+        render();
+        return;
+      }
+      if (!info && !/webp/i.test(file.type)) item.note = 'Not a .webp file, converted anyway';
       const bmp = await decode(file);
       const w = bmp.width, h = bmp.height;
       const canvas = document.createElement('canvas');
@@ -215,155 +468,233 @@ footer { font-size: 13px; color: var(--muted); }
 
   function handleFiles(files) {
     const arr = Array.from(files || []).filter(f => f.type.startsWith('image/') || /\.webp$/i.test(f.name));
-    // Replace the example once real files arrive
     if (arr.length && items.some(i => i.example)) {
-      items.filter(i => i.example).forEach(i => i.url && URL.revokeObjectURL(i.url));
+      items.filter(i => i.example).forEach(disposeItem);
       items = items.filter(i => !i.example);
     }
-    arr.forEach(f => convert(f));
+    arr.forEach(f => addFile(f));
+  }
+  function disposeItem(i) { [i.url, i.srcUrl].forEach(u => u && URL.revokeObjectURL(u)); }
+
+  async function convertAnimated(item, key) {
+    if (item.busy[key]) return;
+    if (item.outputs[key]) { return saveBlob(item, item.outputs[key].name, item.outputs[key].blob, key); }
+    if (typeof CompressionStream === 'undefined') { item.outputs[key] = null; item.failed = { ...(item.failed || {}), [key]: 'This browser is too old to encode PNGs here. Try a current Chrome, Edge, Firefox or Safari.' }; return render(); }
+    if (key !== 'apng' && typeof JSZip === 'undefined') { item.failed = { ...(item.failed || {}), [key]: 'The ZIP library did not load. Check your connection and reload.' }; return render(); }
+    item.busy[key] = true;
+    if (item.failed) delete item.failed[key];
+    render();
+    const progress = (done, total) => {
+      const el = listEl.querySelector(`[data-prog="${item.id}-${key}"]`);
+      if (el) el.textContent = `Encoding frame ${done} of ${total}…`;
+    };
+    try {
+      let blob, name;
+      if (key === 'apng') { blob = await buildAPNG(item.anim, progress); name = item.base + '.png'; }
+      else if (key === 'frames') { blob = await buildFrameZip(item.anim, item.base, false, progress); name = item.base + '-frames.zip'; }
+      else { blob = await buildFrameZip(item.anim, item.base, true, progress); name = item.base + '-avif-kit.zip'; }
+      item.outputs[key] = { blob, name };
+      if (key === 'apng') { if (item.url) URL.revokeObjectURL(item.url); item.url = URL.createObjectURL(blob); }
+    } catch (e) {
+      item.failed = { ...(item.failed || {}), [key]: "Couldn't decode this animation's frames." };
+    }
+    item.busy[key] = false;
+    render();
   }
 
-  async function saveOne(item, btn) {
+  async function saveBlob(item, filename, blob, key) {
     if (!downloads) return;
-    btn.disabled = true;
     try {
-      await downloads.save({ filename: item.name, data: item.pngBlob });
-      flash(item, 'Saved');
+      await downloads.save({ filename, data: blob });
+      flash(item, 'Saved ' + filename, key);
     } catch (e) {
-      if (e && e.code === 'declined') flash(item, 'Save cancelled');
-      else if (e && e.code === 'rate_limited') flash(item, 'Another save is open. Try again in a moment.');
-      else flash(item, "Couldn't save this file here.");
-    } finally { btn.disabled = false; }
+      if (e && e.code === 'declined') flash(item, 'Save cancelled', key);
+      else if (e && e.code === 'rate_limited') flash(item, 'Another save is open. Try again in a moment.', key);
+      else flash(item, "Couldn't save this file here.", key);
+    }
   }
 
   async function saveZip() {
-    const ready = items.filter(i => i.pngBlob);
-    if (!downloads || !ready.length || typeof JSZip === 'undefined') return;
+    const entries = [];
+    for (const it of items) {
+      if (it.pngBlob) entries.push([it.name, it.pngBlob]);
+      if (it.outputs?.apng) entries.push([it.base + '-animated.png', it.outputs.apng.blob]);
+    }
+    if (!downloads || !entries.length || typeof JSZip === 'undefined') return;
     zipBtn.disabled = true;
     const label = zipBtn.textContent;
     zipBtn.textContent = 'Packing…';
     try {
-      const zip = new JSZip();
-      const used = new Set();
-      for (const it of ready) {
-        let n = it.name, k = 2;
-        while (used.has(n)) n = it.name.replace(/\.png$/, `-${k++}.png`);
-        used.add(n);
-        zip.file(n, it.pngBlob);
+      const zip = new JSZip(), used = new Set();
+      for (const [name, blob] of entries) {
+        let n = name, k = 2;
+        while (used.has(n)) n = name.replace(/\.png$/, `-${k++}.png`);
+        used.add(n); zip.file(n, blob);
       }
-      const blob = await zip.generateAsync({ type: 'blob', compression: 'STORE' });
-      await downloads.save({ filename: 'converted-png.zip', data: blob });
-    } catch (e) { /* declined or unavailable: nothing to do */ }
+      await downloads.save({ filename: 'converted-png.zip', data: await zip.generateAsync({ type: 'blob', compression: 'STORE' }) });
+    } catch (e) {}
     zipBtn.textContent = label;
-    zipBtn.disabled = false;
+    render();
   }
 
   function flash(item, msg) { item.flash = msg; render(); setTimeout(() => { if (item.flash === msg) { item.flash = null; render(); } }, 2600); }
 
+  /* ---------- Rendering ---------- */
+  function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+
   function render() {
-    const ready = items.filter(i => i.pngBlob).length;
-    countEl.textContent = items.length ? `Converted files (${ready})` : 'Converted files';
-    zipBtn.disabled = !downloads || ready < 1 || typeof JSZip === 'undefined';
+    const savable = items.filter(i => i.pngBlob || i.outputs?.apng).length;
+    countEl.textContent = items.length ? `Files (${items.length})` : 'Files';
+    zipBtn.disabled = !downloads || savable < 1 || typeof JSZip === 'undefined';
     clearBtn.disabled = !items.length;
     noSave.hidden = !(downloadsChecked && !downloads);
     listEl.replaceChildren();
-    if (!items.length) {
-      const e = document.createElement('div');
-      e.className = 'empty';
-      e.textContent = 'No files yet. Converted PNGs will appear here.';
-      listEl.append(e);
-      return;
-    }
-    for (const it of items) {
-      const row = document.createElement('div');
-      row.className = 'row';
+    if (!items.length) { listEl.append(el('div', 'empty', 'No files yet. Converted PNGs will appear here.')); return; }
 
-      const thumb = document.createElement('div');
-      thumb.className = 'thumb';
-      if (it.url) { const img = document.createElement('img'); img.src = it.url; img.alt = it.name; thumb.append(img); }
+    for (const it of items) {
+      const row = el('div', 'row');
+      const thumb = el('div', 'thumb');
+      const src = it.anim ? it.srcUrl : it.url;
+      if (src) { const img = el('img'); img.src = src; img.alt = it.srcName; thumb.append(img); }
       row.append(thumb);
 
-      const meta = document.createElement('div');
-      meta.className = 'meta';
-      const name = document.createElement('div');
-      name.className = 'name';
-      name.textContent = it.name;
-      if (it.example) { const t = document.createElement('span'); t.className = 'tag'; t.textContent = 'Example'; name.append(t); }
+      const meta = el('div', 'meta');
+      const name = el('div', 'name', it.anim ? it.srcName : it.name);
+      if (it.anim) name.append(el('span', 'tag', 'Animated'));
+      if (it.example) name.append(el('span', 'tag', 'Example'));
       meta.append(name);
 
-      const facts = document.createElement('div');
-      facts.className = 'facts';
-      const add = (label, val) => { const s = document.createElement('span'); s.append(label + ' '); const b = document.createElement('b'); b.textContent = val; s.append(b); facts.append(s); };
+      const facts = el('div', 'facts');
+      const add = (label, val) => { const s = el('span'); s.append(label + ' '); s.append(el('b', null, val)); facts.append(s); };
       add('WebP', fmt(it.srcSize));
-      if (it.pngBlob) {
+      if (it.anim) {
+        add('Frames', String(it.anim.frames.length));
+        add('Length', secs(it.totalMs));
+        add('Size', `${it.anim.w} × ${it.anim.h} px`);
+        add('Loops', it.anim.loops === 0 ? 'forever' : String(it.anim.loops));
+      } else if (it.pngBlob) {
         add('PNG', fmt(it.pngBlob.size));
         add('Size', `${it.w} × ${it.h} px`);
         add('Alpha', it.alpha ? 'yes' : 'none');
       }
       meta.append(facts);
 
-      const status = document.createElement('div');
-      status.className = 'status';
+      const status = el('div', 'status');
       if (it.error) { status.classList.add('err'); status.textContent = it.error; }
-      else if (!it.pngBlob) status.textContent = 'Converting…';
+      else if (!it.pngBlob && !it.anim) status.textContent = 'Converting…';
       else if (it.flash) { status.classList.add('ok'); status.textContent = it.flash; }
       else if (it.note) status.textContent = it.note;
       if (status.textContent) meta.append(status);
       row.append(meta);
 
-      const actions = document.createElement('div');
-      actions.className = 'row-actions';
+      const actions = el('div', 'row-actions');
       if (it.pngBlob && downloads) {
-        const save = document.createElement('button');
-        save.className = 'btn primary'; save.type = 'button'; save.textContent = 'Save PNG';
-        save.onclick = () => saveOne(it, save);
+        const save = el('button', 'btn primary', 'Save PNG'); save.type = 'button';
+        save.onclick = () => saveBlob(it, it.name, it.pngBlob);
         actions.append(save);
       }
-      const rm = document.createElement('button');
-      rm.className = 'btn icon-btn'; rm.type = 'button'; rm.title = 'Remove'; rm.setAttribute('aria-label', 'Remove ' + it.name);
-      rm.textContent = '✕';
-      rm.onclick = () => { if (it.url) URL.revokeObjectURL(it.url); items = items.filter(x => x !== it); render(); };
+      const rm = el('button', 'btn icon-btn', '✕'); rm.type = 'button'; rm.title = 'Remove';
+      rm.setAttribute('aria-label', 'Remove ' + it.srcName);
+      rm.onclick = () => { disposeItem(it); items = items.filter(x => x !== it); render(); };
       actions.append(rm);
       row.append(actions);
 
+      if (it.anim) {
+        const ask = el('div', 'ask');
+        ask.append(el('div', 'ask-q', 'This WebP is animated. Convert it to:'));
+        const choices = el('div', 'choices');
+        for (const f of FORMATS) {
+          const out = it.outputs[f.key], busy = it.busy[f.key], fail = it.failed?.[f.key];
+          const b = el('button', 'choice' + (out ? ' done' : '') + (fail ? ' failed' : ''));
+          b.type = 'button';
+          b.disabled = !!busy || (!!out && !downloads);
+          b.append(el('span', 'c-title', f.title), el('span', 'c-desc', f.desc));
+          const st = el('span', 'c-state');
+          st.dataset.prog = `${it.id}-${f.key}`;
+          st.textContent = busy ? 'Starting…' : fail ? fail : out ? (downloads ? `${fmt(out.blob.size)} · Save` : fmt(out.blob.size)) : 'Convert';
+          b.append(st);
+          b.onclick = () => convertAnimated(it, f.key);
+          choices.append(b);
+        }
+        ask.append(choices);
+        row.append(ask);
+      }
       listEl.append(row);
     }
   }
 
-  // Inputs
+  /* ---------- Inputs ---------- */
   picker.addEventListener('change', () => { handleFiles(picker.files); picker.value = ''; });
   ['dragenter', 'dragover'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.add('over'); }));
   ['dragleave', 'drop'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.remove('over'); }));
-  drop.addEventListener('drop', e => handleFiles(e.dataTransfer.files));
+  drop.addEventListener('drop', e => { e.stopPropagation(); handleFiles(e.dataTransfer.files); });
   window.addEventListener('dragover', e => e.preventDefault());
-  window.addEventListener('drop', e => { e.preventDefault(); if (!drop.contains(e.target)) handleFiles(e.dataTransfer.files); });
+  window.addEventListener('drop', e => { e.preventDefault(); handleFiles(e.dataTransfer.files); });
   document.addEventListener('paste', e => {
     const files = Array.from(e.clipboardData?.items || []).filter(i => i.kind === 'file').map(i => i.getAsFile()).filter(Boolean);
     handleFiles(files);
   });
   zipBtn.addEventListener('click', saveZip);
-  clearBtn.addEventListener('click', () => { items.forEach(i => i.url && URL.revokeObjectURL(i.url)); items = []; render(); });
+  clearBtn.addEventListener('click', () => { items.forEach(disposeItem); items = []; render(); });
 
-  // Example: draw a small transparent badge, encode it as WebP, and run it through the converter.
-  function makeExample() {
-    const c = document.createElement('canvas');
-    c.width = 320; c.height = 200;
+  /* ---------- Examples (only where the browser can encode WebP) ---------- */
+  const toWebP = (c) => new Promise(r => c.toBlob(b => r(b && b.type === 'image/webp' ? b : null), 'image/webp', 0.92));
+
+  function stillChunks(u8) {
+    const dv = new DataView(u8.buffer, u8.byteOffset), tag = (o) => String.fromCharCode(u8[o], u8[o + 1], u8[o + 2], u8[o + 3]);
+    const parts = []; let o = 12;
+    while (o + 8 <= u8.length) {
+      const id = tag(o), s = dv.getUint32(o + 4, true);
+      if (id === 'ALPH' || id === 'VP8 ' || id === 'VP8L') { const p = new Uint8Array(8 + s + (s & 1)); p.set(u8.subarray(o, o + 8 + s)); parts.push(p); }
+      o += 8 + s + (s & 1);
+    }
+    return parts;
+  }
+  async function makeAnimatedExample() {
+    const W = 240, H = 160, N = 16, DUR = 70;
+    const c = document.createElement('canvas'); c.width = W; c.height = H;
     const x = c.getContext('2d');
-    x.fillStyle = '#2f4ad0';
-    x.beginPath(); x.arc(110, 100, 78, 0, Math.PI * 2); x.fill();
-    x.fillStyle = 'rgba(240, 130, 70, 0.85)';
-    x.beginPath(); x.roundRect ? x.roundRect(150, 40, 140, 120, 22) : x.rect(150, 40, 140, 120); x.fill();
-    x.fillStyle = '#ffffff';
-    x.font = '600 28px system-ui, sans-serif';
-    x.textAlign = 'center'; x.textBaseline = 'middle';
-    x.fillText('webp', 110, 100);
-    c.toBlob(b => {
-      if (b && b.type === 'image/webp' && !items.length) convert(new File([b], 'example-badge.webp', { type: 'image/webp' }), true);
-    }, 'image/webp', 0.9);
+    const frames = [];
+    for (let i = 0; i < N; i++) {
+      x.clearRect(0, 0, W, H);
+      const t = (i / N) * Math.PI * 2;
+      x.fillStyle = 'rgba(47, 74, 208, 0.9)';
+      x.beginPath(); x.arc(W / 2 + Math.cos(t) * 70, H / 2 + Math.sin(t) * 40, 22, 0, Math.PI * 2); x.fill();
+      x.fillStyle = 'rgba(240, 130, 70, 0.85)';
+      x.beginPath(); x.arc(W / 2 - Math.cos(t) * 70, H / 2 - Math.sin(t) * 40, 16, 0, Math.PI * 2); x.fill();
+      const b = await toWebP(c); if (!b) return null;
+      frames.push(stillChunks(new Uint8Array(await b.arrayBuffer())));
+    }
+    const u24 = (v) => [v & 255, (v >> 8) & 255, (v >> 16) & 255];
+    const ch = (id, data) => { const s = data.length, o = new Uint8Array(8 + s + (s & 1)); for (let k = 0; k < 4; k++) o[k] = id.charCodeAt(k); new DataView(o.buffer).setUint32(4, s, true); o.set(data, 8); return o; };
+    const cat = (arrs) => { const n = arrs.reduce((a, b) => a + b.length, 0), o = new Uint8Array(n); let p = 0; for (const a of arrs) { o.set(a, p); p += a.length; } return o; };
+    const body = [ch('VP8X', new Uint8Array([0x12, 0, 0, 0, ...u24(W - 1), ...u24(H - 1)])), ch('ANIM', new Uint8Array([0, 0, 0, 0, 0, 0]))];
+    for (const parts of frames) body.push(ch('ANMF', cat([new Uint8Array([0, 0, 0, 0, 0, 0, ...u24(W - 1), ...u24(H - 1), ...u24(DUR), 0x03]), ...parts])));
+    const content = cat(body), head = new Uint8Array(12);
+    head.set([82, 73, 70, 70]); new DataView(head.buffer).setUint32(4, 4 + content.length, true); head.set([87, 69, 66, 80], 8);
+    return new File([head, content], 'example-orbit.webp', { type: 'image/webp' });
+  }
+  async function makeStillExample() {
+    const c = document.createElement('canvas'); c.width = 320; c.height = 200;
+    const x = c.getContext('2d');
+    x.fillStyle = '#2f4ad0'; x.beginPath(); x.arc(110, 100, 78, 0, Math.PI * 2); x.fill();
+    x.fillStyle = 'rgba(240, 130, 70, 0.85)'; x.beginPath(); x.roundRect ? x.roundRect(150, 40, 140, 120, 22) : x.rect(150, 40, 140, 120); x.fill();
+    x.fillStyle = '#ffffff'; x.font = '600 28px system-ui, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText('webp', 110, 100);
+    const b = await toWebP(c);
+    return b ? new File([b], 'example-badge.webp', { type: 'image/webp' }) : null;
+  }
+  async function loadExamples() {
+    try {
+      const still = await makeStillExample();
+      const anim = still ? await makeAnimatedExample() : null;
+      if (items.length) return;
+      if (still) await addFile(still, true);
+      if (anim && !items.some(i => !i.example)) await addFile(anim, true);
+    } catch (e) {}
   }
 
   render();
-  makeExample();
+  loadExamples();
 
   (async () => {
     if (window.claude?.use) {
