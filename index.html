@@ -1,0 +1,391 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>:root{color-scheme:light dark;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+</head>
+<body>
+<title>WebP to PNG</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+/* Layout: one working column — drop zone on top, a ledger of converted files below, each row a before/after card. */
+:root {
+  --bg: #f3f5f9;
+  --surface: #ffffff;
+  --ink: #141a2b;
+  --muted: #5b6479;
+  --line: #d9dee9;
+  --accent: #2f4ad0;
+  --accent-ink: #ffffff;
+  --accent-soft: #e4e9fb;
+  --ok: #1d7a4f;
+  --warn: #a0461a;
+  --check-a: #e6e9f0;
+  --check-b: #ffffff;
+  --display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1320; --surface: #171c2c; --ink: #e8ebf4; --muted: #98a1b8; --line: #2a3147;
+    --accent: #7d93ff; --accent-ink: #0d1124; --accent-soft: #1f2748; --ok: #5fd39a; --warn: #f0a27a;
+    --check-a: #222a3d; --check-b: #1a2032; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1320; --surface: #171c2c; --ink: #e8ebf4; --muted: #98a1b8; --line: #2a3147;
+  --accent: #7d93ff; --accent-ink: #0d1124; --accent-soft: #1f2748; --ok: #5fd39a; --warn: #f0a27a;
+  --check-a: #222a3d; --check-b: #1a2032; color-scheme: dark;
+}
+
+body { background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 15px; line-height: 1.5; }
+.wrap {
+  max-width: 880px; margin: 0 auto;
+  padding-block: 40px 64px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid; gap: 28px;
+}
+header { display: grid; gap: 6px; }
+.eyebrow { font-family: var(--mono); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+h1 { font-family: var(--display); font-weight: 700; font-size: clamp(32px, 6vw, 48px); line-height: 1.05; margin: 0; letter-spacing: -.01em; text-wrap: balance; }
+h1 .arrow { color: var(--accent); }
+.lede { margin: 0; color: var(--muted); max-width: 62ch; }
+
+/* Drop zone */
+.drop {
+  position: relative; border: 2px dashed var(--line); border-radius: 14px;
+  background:
+    repeating-conic-gradient(var(--check-a) 0 25%, var(--check-b) 0 50%) 0 0 / 20px 20px;
+  padding: 36px 20px; display: grid; place-items: center; text-align: center; gap: 12px;
+  transition: border-color .15s, transform .15s;
+}
+.drop::before { content: ""; position: absolute; inset: 0; border-radius: 12px; background: var(--surface); opacity: .88; }
+.drop > * { position: relative; }
+.drop.over { border-color: var(--accent); transform: scale(1.005); }
+.drop strong { font-family: var(--display); font-size: 22px; font-weight: 600; }
+.drop p { margin: 0; color: var(--muted); }
+.btn {
+  font: 600 14px/1 var(--body); border-radius: 8px; padding: 11px 16px; cursor: pointer;
+  border: 1px solid var(--line); background: var(--surface); color: var(--ink);
+  display: inline-flex; align-items: center; gap: 8px;
+}
+.btn:hover { border-color: var(--accent); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.btn.primary:hover { filter: brightness(1.08); }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.btn:focus-visible, .drop:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; }
+.hint { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+
+/* Toolbar */
+.bar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; }
+.bar h2 { font-family: var(--display); font-size: 20px; font-weight: 600; margin: 0; }
+.bar .actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.notice { font-size: 13px; color: var(--muted); background: var(--accent-soft); border-radius: 8px; padding: 10px 12px; }
+
+/* File rows */
+.list { display: grid; gap: 12px; }
+.row {
+  display: grid; grid-template-columns: 112px minmax(0, 1fr) auto; gap: 16px; align-items: center;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px;
+}
+.thumb {
+  width: 112px; height: 84px; border-radius: 8px; overflow: hidden;
+  background: repeating-conic-gradient(var(--check-a) 0 25%, var(--check-b) 0 50%) 0 0 / 12px 12px;
+  display: grid; place-items: center;
+}
+.thumb img { max-width: 100%; max-height: 100%; object-fit: contain; display: block; }
+.meta { min-width: 0; display: grid; gap: 4px; }
+.name { font-weight: 600; overflow-wrap: anywhere; }
+.name .tag { font: 500 11px/1 var(--mono); text-transform: uppercase; letter-spacing: .06em; color: var(--accent); background: var(--accent-soft); padding: 3px 6px; border-radius: 4px; margin-left: 6px; vertical-align: 2px; }
+.facts { font-family: var(--mono); font-size: 12.5px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 4px 14px; font-variant-numeric: tabular-nums; }
+.facts b { font-weight: 500; color: var(--ink); }
+.status { font-size: 13px; }
+.status.ok { color: var(--ok); }
+.status.err { color: var(--warn); }
+.row-actions { display: flex; gap: 8px; }
+.icon-btn { width: 38px; height: 38px; padding: 0; justify-content: center; }
+.empty { text-align: center; color: var(--muted); padding: 24px; border: 1px dashed var(--line); border-radius: 12px; }
+
+footer { font-size: 13px; color: var(--muted); }
+
+@media (max-width: 560px) {
+  .row { grid-template-columns: 80px minmax(0, 1fr); }
+  .thumb { width: 80px; height: 64px; }
+  .row-actions { grid-column: 1 / -1; }
+  .row-actions .btn:first-child { flex: 1; justify-content: center; }
+}
+@media (prefers-reduced-motion: reduce) { .drop { transition: none; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <span class="eyebrow">Image converter · runs in your browser</span>
+    <h1>WebP <span class="arrow">→</span> PNG</h1>
+    <p class="lede">Drop in .webp images and get lossless PNG copies with transparency intact. Files never leave your device; decoding and encoding happen right here on the page.</p>
+  </header>
+
+  <label class="drop" id="drop">
+    <strong>Drop WebP files here</strong>
+    <p>or paste an image, or</p>
+    <span class="btn primary" role="button">Choose files</span>
+    <input id="picker" type="file" accept="image/webp,.webp" multiple hidden>
+    <span class="hint">Multiple files OK · animated WebP keeps its first frame</span>
+  </label>
+
+  <section style="display:grid;gap:14px">
+    <div class="bar">
+      <h2 id="count">Converted files</h2>
+      <div class="actions">
+        <button class="btn" id="clear" type="button">Clear list</button>
+        <button class="btn primary" id="zip" type="button">Save all as ZIP</button>
+      </div>
+    </div>
+    <div class="notice" id="noSave" hidden>Saving isn't available in this view. Right-click (or long-press) a thumbnail and choose “Save image”, or open this page in claude.ai.</div>
+    <div class="list" id="list"></div>
+  </section>
+
+  <footer>PNG is lossless, so output files are often larger than the WebP source. That's expected.</footer>
+</div>
+
+<script>
+(() => {
+  const listEl = document.getElementById('list');
+  const countEl = document.getElementById('count');
+  const zipBtn = document.getElementById('zip');
+  const clearBtn = document.getElementById('clear');
+  const drop = document.getElementById('drop');
+  const picker = document.getElementById('picker');
+  const noSave = document.getElementById('noSave');
+
+  let items = [];       // {id, name, srcSize, pngBlob, url, w, h, alpha, error, example}
+  let downloads = null;
+  let downloadsChecked = false;
+  let nextId = 1;
+
+  const fmt = (n) => n < 1024 ? n + ' B' : n < 1048576 ? (n / 1024).toFixed(1) + ' KB' : (n / 1048576).toFixed(2) + ' MB';
+  const pngName = (name) => name.replace(/\.webp$/i, '').replace(/\.[^.]+$/, '') + '.png';
+
+  async function decode(file) {
+    if ('createImageBitmap' in window) {
+      try { return await createImageBitmap(file); } catch (e) { /* fall through */ }
+    }
+    return new Promise((res, rej) => {
+      const img = new Image();
+      const u = URL.createObjectURL(file);
+      img.onload = () => { URL.revokeObjectURL(u); res(img); };
+      img.onerror = () => { URL.revokeObjectURL(u); rej(new Error('decode')); };
+      img.src = u;
+    });
+  }
+
+  function hasAlpha(ctx, w, h) {
+    const data = ctx.getImageData(0, 0, w, h).data;
+    const step = Math.max(1, Math.floor((w * h) / 400000)) * 4;
+    for (let i = 3; i < data.length; i += step) if (data[i] < 255) return true;
+    return false;
+  }
+
+  async function convert(file, example = false) {
+    const item = { id: nextId++, name: pngName(file.name || 'pasted-image.webp'), srcName: file.name || 'pasted image', srcSize: file.size, example };
+    items.unshift(item);
+    render();
+    try {
+      const looksWebp = /webp/i.test(file.type) || /\.webp$/i.test(file.name || '');
+      if (!looksWebp) item.note = 'Not a .webp file, converted anyway';
+      const bmp = await decode(file);
+      const w = bmp.width, h = bmp.height;
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+      ctx.drawImage(bmp, 0, 0);
+      if (bmp.close) bmp.close();
+      item.alpha = hasAlpha(ctx, w, h);
+      const blob = await new Promise((res, rej) => canvas.toBlob(b => b ? res(b) : rej(new Error('encode')), 'image/png'));
+      Object.assign(item, { w, h, pngBlob: blob, url: URL.createObjectURL(blob) });
+    } catch (e) {
+      item.error = "This file couldn't be read as an image. Check that it's a valid WebP.";
+    }
+    render();
+  }
+
+  function handleFiles(files) {
+    const arr = Array.from(files || []).filter(f => f.type.startsWith('image/') || /\.webp$/i.test(f.name));
+    // Replace the example once real files arrive
+    if (arr.length && items.some(i => i.example)) {
+      items.filter(i => i.example).forEach(i => i.url && URL.revokeObjectURL(i.url));
+      items = items.filter(i => !i.example);
+    }
+    arr.forEach(f => convert(f));
+  }
+
+  async function saveOne(item, btn) {
+    if (!downloads) return;
+    btn.disabled = true;
+    try {
+      await downloads.save({ filename: item.name, data: item.pngBlob });
+      flash(item, 'Saved');
+    } catch (e) {
+      if (e && e.code === 'declined') flash(item, 'Save cancelled');
+      else if (e && e.code === 'rate_limited') flash(item, 'Another save is open. Try again in a moment.');
+      else flash(item, "Couldn't save this file here.");
+    } finally { btn.disabled = false; }
+  }
+
+  async function saveZip() {
+    const ready = items.filter(i => i.pngBlob);
+    if (!downloads || !ready.length || typeof JSZip === 'undefined') return;
+    zipBtn.disabled = true;
+    const label = zipBtn.textContent;
+    zipBtn.textContent = 'Packing…';
+    try {
+      const zip = new JSZip();
+      const used = new Set();
+      for (const it of ready) {
+        let n = it.name, k = 2;
+        while (used.has(n)) n = it.name.replace(/\.png$/, `-${k++}.png`);
+        used.add(n);
+        zip.file(n, it.pngBlob);
+      }
+      const blob = await zip.generateAsync({ type: 'blob', compression: 'STORE' });
+      await downloads.save({ filename: 'converted-png.zip', data: blob });
+    } catch (e) { /* declined or unavailable: nothing to do */ }
+    zipBtn.textContent = label;
+    zipBtn.disabled = false;
+  }
+
+  function flash(item, msg) { item.flash = msg; render(); setTimeout(() => { if (item.flash === msg) { item.flash = null; render(); } }, 2600); }
+
+  function render() {
+    const ready = items.filter(i => i.pngBlob).length;
+    countEl.textContent = items.length ? `Converted files (${ready})` : 'Converted files';
+    zipBtn.disabled = !downloads || ready < 1 || typeof JSZip === 'undefined';
+    clearBtn.disabled = !items.length;
+    noSave.hidden = !(downloadsChecked && !downloads);
+    listEl.replaceChildren();
+    if (!items.length) {
+      const e = document.createElement('div');
+      e.className = 'empty';
+      e.textContent = 'No files yet. Converted PNGs will appear here.';
+      listEl.append(e);
+      return;
+    }
+    for (const it of items) {
+      const row = document.createElement('div');
+      row.className = 'row';
+
+      const thumb = document.createElement('div');
+      thumb.className = 'thumb';
+      if (it.url) { const img = document.createElement('img'); img.src = it.url; img.alt = it.name; thumb.append(img); }
+      row.append(thumb);
+
+      const meta = document.createElement('div');
+      meta.className = 'meta';
+      const name = document.createElement('div');
+      name.className = 'name';
+      name.textContent = it.name;
+      if (it.example) { const t = document.createElement('span'); t.className = 'tag'; t.textContent = 'Example'; name.append(t); }
+      meta.append(name);
+
+      const facts = document.createElement('div');
+      facts.className = 'facts';
+      const add = (label, val) => { const s = document.createElement('span'); s.append(label + ' '); const b = document.createElement('b'); b.textContent = val; s.append(b); facts.append(s); };
+      add('WebP', fmt(it.srcSize));
+      if (it.pngBlob) {
+        add('PNG', fmt(it.pngBlob.size));
+        add('Size', `${it.w} × ${it.h} px`);
+        add('Alpha', it.alpha ? 'yes' : 'none');
+      }
+      meta.append(facts);
+
+      const status = document.createElement('div');
+      status.className = 'status';
+      if (it.error) { status.classList.add('err'); status.textContent = it.error; }
+      else if (!it.pngBlob) status.textContent = 'Converting…';
+      else if (it.flash) { status.classList.add('ok'); status.textContent = it.flash; }
+      else if (it.note) status.textContent = it.note;
+      if (status.textContent) meta.append(status);
+      row.append(meta);
+
+      const actions = document.createElement('div');
+      actions.className = 'row-actions';
+      if (it.pngBlob && downloads) {
+        const save = document.createElement('button');
+        save.className = 'btn primary'; save.type = 'button'; save.textContent = 'Save PNG';
+        save.onclick = () => saveOne(it, save);
+        actions.append(save);
+      }
+      const rm = document.createElement('button');
+      rm.className = 'btn icon-btn'; rm.type = 'button'; rm.title = 'Remove'; rm.setAttribute('aria-label', 'Remove ' + it.name);
+      rm.textContent = '✕';
+      rm.onclick = () => { if (it.url) URL.revokeObjectURL(it.url); items = items.filter(x => x !== it); render(); };
+      actions.append(rm);
+      row.append(actions);
+
+      listEl.append(row);
+    }
+  }
+
+  // Inputs
+  picker.addEventListener('change', () => { handleFiles(picker.files); picker.value = ''; });
+  ['dragenter', 'dragover'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.add('over'); }));
+  ['dragleave', 'drop'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.remove('over'); }));
+  drop.addEventListener('drop', e => handleFiles(e.dataTransfer.files));
+  window.addEventListener('dragover', e => e.preventDefault());
+  window.addEventListener('drop', e => { e.preventDefault(); if (!drop.contains(e.target)) handleFiles(e.dataTransfer.files); });
+  document.addEventListener('paste', e => {
+    const files = Array.from(e.clipboardData?.items || []).filter(i => i.kind === 'file').map(i => i.getAsFile()).filter(Boolean);
+    handleFiles(files);
+  });
+  zipBtn.addEventListener('click', saveZip);
+  clearBtn.addEventListener('click', () => { items.forEach(i => i.url && URL.revokeObjectURL(i.url)); items = []; render(); });
+
+  // Example: draw a small transparent badge, encode it as WebP, and run it through the converter.
+  function makeExample() {
+    const c = document.createElement('canvas');
+    c.width = 320; c.height = 200;
+    const x = c.getContext('2d');
+    x.fillStyle = '#2f4ad0';
+    x.beginPath(); x.arc(110, 100, 78, 0, Math.PI * 2); x.fill();
+    x.fillStyle = 'rgba(240, 130, 70, 0.85)';
+    x.beginPath(); x.roundRect ? x.roundRect(150, 40, 140, 120, 22) : x.rect(150, 40, 140, 120); x.fill();
+    x.fillStyle = '#ffffff';
+    x.font = '600 28px system-ui, sans-serif';
+    x.textAlign = 'center'; x.textBaseline = 'middle';
+    x.fillText('webp', 110, 100);
+    c.toBlob(b => {
+      if (b && b.type === 'image/webp' && !items.length) convert(new File([b], 'example-badge.webp', { type: 'image/webp' }), true);
+    }, 'image/webp', 0.9);
+  }
+
+  render();
+  makeExample();
+
+  (async () => {
+    if (window.claude?.use) {
+      try { downloads = await window.claude.use('downloads'); } catch (e) { downloads = null; }
+    } else {
+      // Standalone hosting (e.g. GitHub Pages): plain browser downloads.
+      downloads = {
+        save: async ({ filename, data }) => {
+          const u = URL.createObjectURL(data instanceof Blob ? data : new Blob([data]));
+          const a = document.createElement('a');
+          a.href = u; a.download = filename;
+          document.body.append(a); a.click(); a.remove();
+          setTimeout(() => URL.revokeObjectURL(u), 4000);
+          return { status: 'saved' };
+        }
+      };
+    }
+    downloadsChecked = true;
+    render();
+  })();
+})();
+</script>
+
+</body>
+</html>
