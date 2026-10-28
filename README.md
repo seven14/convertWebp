@@ -2,7 +2,7 @@
 
 A small, single-page web app that converts WebP images to PNG, entirely in your browser. Files never leave your device. There is no server, upload, or account.
 
-**Live:** `[https://<yourusername>.github.io/](https://seven14.github.io/convertWebp/)` *(update this link once it's published)*
+**Live:** `https://seven14.github.io/convertWebp` *(update this link once it's published)*
 
 ## Features
 
